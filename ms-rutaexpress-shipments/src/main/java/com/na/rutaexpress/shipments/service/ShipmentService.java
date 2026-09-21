@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import com.na.rutaexpress.shipments.model.Shipment;
 import com.na.rutaexpress.shipments.model.ShipmentStatus;
+import com.na.rutaexpress.shipments.model.ShipmentHistoryStatus;
 import com.na.rutaexpress.shipments.repository.ShipmentRepository;
 
 import jakarta.transaction.Transactional;
@@ -23,7 +24,6 @@ public class ShipmentService {
     @Autowired
     private ShipmentRepository shipmentRepository;
 
-    // Transiciones validas segun el caso: no se puede saltar pasos
     private static final Map<ShipmentStatus, Set<ShipmentStatus>> TRANSICIONES = new EnumMap<>(ShipmentStatus.class);
     static {
         TRANSICIONES.put(ShipmentStatus.CREADO, Set.of(ShipmentStatus.ACEPTADO, ShipmentStatus.CANCELADO));
@@ -50,7 +50,13 @@ public class ShipmentService {
         nuevo.setTrackingCode("RE-" + java.time.Year.now() + "-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
         nuevo.setStatus(ShipmentStatus.CREADO);
         nuevo.setCreatedAt(Instant.now());
-        return shipmentRepository.save(nuevo);
+
+        Shipment guardado = shipmentRepository.save(nuevo);
+
+        ShipmentHistoryStatus evento = new ShipmentHistoryStatus(guardado, ShipmentStatus.CREADO, nuevo.getCreatedByUserId());
+        guardado.getHistoryStatus().add(evento);
+
+        return shipmentRepository.save(guardado);
     }
 
     public Shipment cambiarEstado(Long id, ShipmentStatus nuevoStatus, String byUserId) {
@@ -67,6 +73,9 @@ public class ShipmentService {
         if (nuevoStatus == ShipmentStatus.ACEPTADO) {
             shipment.setAssignedDispatcherId(byUserId);
         }
+
+        ShipmentHistoryStatus evento = new ShipmentHistoryStatus(shipment, nuevoStatus, byUserId);
+        shipment.getHistoryStatus().add(evento);
 
         return shipmentRepository.save(shipment);
     }

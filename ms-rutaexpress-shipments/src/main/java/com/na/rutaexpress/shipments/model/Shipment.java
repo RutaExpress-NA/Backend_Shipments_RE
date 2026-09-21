@@ -15,6 +15,12 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import jakarta.persistence.*;
+
+import com.fasterxml.jackson.annotation.JsonManagedReference;
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @Table(name = "shipment")
 @Data
@@ -54,6 +60,10 @@ public class Shipment {
     @Column
     private Instant updatedAt;
 
+    @OneToMany(mappedBy = "shipment", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonManagedReference
+    private List<ShipmentHistoryStatus> historyStatus = new ArrayList<>();
+
     public Shipment(String trackingCode, ShipmentStatus status, String serviceId, String createdByUserId, Recipient recipient, Double weightKg) {
         this.trackingCode = trackingCode;
         this.status = status;
@@ -63,4 +73,6 @@ public class Shipment {
         this.weightKg = weightKg;
         this.createdAt = Instant.now();
     }
+
+    
 }
