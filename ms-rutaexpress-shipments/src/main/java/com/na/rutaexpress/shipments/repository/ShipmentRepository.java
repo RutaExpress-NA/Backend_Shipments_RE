@@ -15,4 +15,4 @@ public interface ShipmentRepository extends JpaRepository<Shipment, Long> {
     List<Shipment> findByStatus(ShipmentStatus status);
 
     List<Shipment> findByAssignedDispatcherId(String assignedDispatcherId);
-}
+}   

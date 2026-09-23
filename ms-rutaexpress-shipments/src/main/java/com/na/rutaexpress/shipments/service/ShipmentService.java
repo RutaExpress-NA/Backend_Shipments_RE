@@ -10,19 +10,22 @@ import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.na.rutaexpress.shipments.client.CatalogClient;
 import com.na.rutaexpress.shipments.model.Shipment;
-import com.na.rutaexpress.shipments.model.ShipmentStatus;
 import com.na.rutaexpress.shipments.model.ShipmentHistoryStatus;
+import com.na.rutaexpress.shipments.model.ShipmentStatus;
 import com.na.rutaexpress.shipments.repository.ShipmentRepository;
 
 import jakarta.transaction.Transactional;
-
 @Service
 @Transactional
 public class ShipmentService {
 
     @Autowired
     private ShipmentRepository shipmentRepository;
+
+    @Autowired
+    private CatalogClient catalogClient;
 
     private static final Map<ShipmentStatus, Set<ShipmentStatus>> TRANSICIONES = new EnumMap<>(ShipmentStatus.class);
     static {
@@ -67,9 +70,21 @@ public class ShipmentService {
             throw new RuntimeException("No se puede pasar de " + actual + " a " + nuevoStatus);
         }
 
+
+        if (nuevoStatus == ShipmentStatus.ACEPTADO) {
+            String vehicleType = catalogClient.obtenerVehicleTypeRequired(shipment.getServiceId());
+            catalogClient.descontarCapacidad(vehicleType);
+        }
+
+        if ((nuevoStatus == ShipmentStatus.ENTREGADO || nuevoStatus == ShipmentStatus.CANCELADO)
+                && actual != ShipmentStatus.CREADO) {
+            String vehicleType = catalogClient.obtenerVehicleTypeRequired(shipment.getServiceId());
+            catalogClient.reponerCapacidad(vehicleType);
+        }
         shipment.setStatus(nuevoStatus);
         shipment.setUpdatedAt(Instant.now());
 
+        
         if (nuevoStatus == ShipmentStatus.ACEPTADO) {
             shipment.setAssignedDispatcherId(byUserId);
         }
