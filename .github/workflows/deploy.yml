@@ -24,16 +24,36 @@ jobs:
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build and push Docker image
+      - name: Build Docker image
         env:
           ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
+          echo "===================================="
+          echo " Construyendo imagen: rutaexpress-shipments"
+          echo " Tag: $IMAGE_TAG"
+          echo "===================================="
           docker build --no-cache -t $ECR_REGISTRY/rutaexpress-shipments:$IMAGE_TAG ./ms-rutaexpress-shipments
+          echo ""
+          echo "Build completado."
+
+      - name: Push Docker image to ECR
+        env:
+          ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          echo "===================================="
+          echo " Subiendo imagen a ECR..."
+          echo "===================================="
           docker push $ECR_REGISTRY/rutaexpress-shipments:$IMAGE_TAG
+          echo ""
+          echo "Push completado: $ECR_REGISTRY/rutaexpress-shipments:$IMAGE_TAG"
 
       - name: Update kubeconfig
         run: |
+          echo "===================================="
+          echo " Conectando al cluster EKS: rutaexpress"
+          echo "===================================="
           aws eks update-kubeconfig --region ${{ secrets.AWS_REGION }} --name rutaexpress
 
       - name: Deploy to EKS
@@ -41,7 +61,27 @@ jobs:
           ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
+          echo "===================================="
+          echo " Actualizando deployment/rutaexpress-shipments"
+          echo " Nueva imagen: $ECR_REGISTRY/rutaexpress-shipments:$IMAGE_TAG"
+          echo "===================================="
           kubectl set image deployment/rutaexpress-shipments shipments=$ECR_REGISTRY/rutaexpress-shipments:$IMAGE_TAG -n rutaexpress
+          echo ""
+          echo "Esperando rollout..."
           kubectl rollout status deployment/rutaexpress-shipments -n rutaexpress --timeout=300s
 
-#mensaje checkpoint prueba de pipeline
+      - name: Mostrar resultado
+        run: |
+          echo "===================================="
+          echo " DEPLOY COMPLETADO: rutaexpress-shipments"
+          echo "===================================="
+          echo ""
+          echo "Pods en namespace rutaexpress (filtrado shipments):"
+          kubectl get pods -n rutaexpress -l app=rutaexpress-shipments -o wide
+          echo ""
+          echo "Detalle del deployment:"
+          kubectl get deployment rutaexpress-shipments -n rutaexpress
+          echo ""
+          echo "Commit desplegado: ${{ github.sha }}"
+          echo "Fecha: $(date)"
+          echo "===================================="
