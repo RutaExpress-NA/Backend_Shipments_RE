@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.na.rutaexpress.shipments.client.CatalogClient;
+import com.na.rutaexpress.shipments.client.NotifyClient;
 import com.na.rutaexpress.shipments.model.Shipment;
 import com.na.rutaexpress.shipments.model.ShipmentHistoryStatus;
 import com.na.rutaexpress.shipments.model.ShipmentStatus;
@@ -26,6 +27,9 @@ public class ShipmentService {
 
     @Autowired
     private CatalogClient catalogClient;
+
+    @Autowired
+    private NotifyClient notifyClient;
 
     private static final Map<ShipmentStatus, Set<ShipmentStatus>> TRANSICIONES = new EnumMap<>(ShipmentStatus.class);
     static {
@@ -59,7 +63,9 @@ public class ShipmentService {
         ShipmentHistoryStatus evento = new ShipmentHistoryStatus(guardado, ShipmentStatus.CREADO, nuevo.getCreatedByUserId());
         guardado.getHistoryStatus().add(evento);
 
-        return shipmentRepository.save(guardado);
+        Shipment resultado = shipmentRepository.save(guardado);
+        notifyClient.enviarEvento(resultado);
+        return resultado;
     }
 
     public Shipment cambiarEstado(Long id, ShipmentStatus nuevoStatus, String byUserId) {
@@ -92,6 +98,8 @@ public class ShipmentService {
         ShipmentHistoryStatus evento = new ShipmentHistoryStatus(shipment, nuevoStatus, byUserId);
         shipment.getHistoryStatus().add(evento);
 
-        return shipmentRepository.save(shipment);
+        Shipment actualizado = shipmentRepository.save(shipment);
+        notifyClient.enviarEvento(actualizado);
+        return actualizado;
     }
 }
