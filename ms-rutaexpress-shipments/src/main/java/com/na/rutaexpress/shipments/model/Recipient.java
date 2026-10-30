@@ -21,5 +21,6 @@ public class Recipient {
 
     @Column(nullable = false)
     private String address;
-    
+
+    private String city;
 }

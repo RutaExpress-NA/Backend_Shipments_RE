@@ -24,6 +24,14 @@ public class CatalogClient {
         return servicio.getVehicleTypeRequired();
     }
 
+    public String obtenerNombreServicio(String serviceId) {
+        ServiceShippingDTO servicio = restTemplate.getForObject(
+            catalogUrl + "/api/catalog/services/" + serviceId,
+            ServiceShippingDTO.class
+        );
+        return servicio != null ? servicio.getName() : null;
+    }
+
     public void descontarCapacidad(String vehicleType) {
         restTemplate.put(catalogUrl + "/api/catalog/fleet-capacity/" + vehicleType + "/descontar", null);
     }

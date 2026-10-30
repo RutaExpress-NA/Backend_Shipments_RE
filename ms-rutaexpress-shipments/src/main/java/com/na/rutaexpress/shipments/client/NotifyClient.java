@@ -26,14 +26,17 @@ public class NotifyClient {
 
     private final RestTemplate restTemplate;
     private final String notifyUrl;
+    private final CatalogClient catalogClient;
 
-    public NotifyClient(@Value("${rutaexpress.services.notify-url}") String notifyUrl) {
+    public NotifyClient(@Value("${rutaexpress.services.notify-url}") String notifyUrl,
+                        CatalogClient catalogClient) {
         // RestTemplate propio con timeouts cortos para no dejar colgada la peticion si notify no responde
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(Duration.ofSeconds(2));
         factory.setReadTimeout(Duration.ofSeconds(3));
         this.restTemplate = new RestTemplate(factory);
         this.notifyUrl = notifyUrl;
+        this.catalogClient = catalogClient;
     }
 
     public void enviarEvento(Shipment shipment) {
@@ -42,9 +45,13 @@ public class NotifyClient {
             event.setShipmentId(shipment.getId());
             event.setTrackingCode(shipment.getTrackingCode());
             event.setNewStatus(shipment.getStatus().name());
+            event.setWeightKg(shipment.getWeightKg());
+            event.setServiceName(nombreServicio(shipment.getServiceId()));
             if (shipment.getRecipient() != null) {
                 event.setRecipientName(shipment.getRecipient().getName());
                 event.setRecipientEmail(shipment.getRecipient().getEmail());
+                event.setDeliveryAddress(shipment.getRecipient().getAddress());
+                event.setDeliveryCity(shipment.getRecipient().getCity());
             }
 
             // Content-Type explicito: sin esto el receptor puede recibir text/plain y rechazar el JSON
@@ -59,6 +66,17 @@ public class NotifyClient {
         } catch (Exception e) {
             log.warn("[NOTIFY] No se pudo avisar a notify (el cambio de estado igual se guardo): {}",
                     e.getMessage());
+        }
+    }
+
+    // Si catalog no responde, se usa un nombre generico
+    private String nombreServicio(String serviceId) {
+        try {
+            String nombre = catalogClient.obtenerNombreServicio(serviceId);
+            return nombre != null ? nombre : "Servicio " + serviceId;
+        } catch (Exception e) {
+            log.warn("[NOTIFY] No se pudo obtener el nombre del servicio {}: {}", serviceId, e.getMessage());
+            return "Servicio " + serviceId;
         }
     }
 }
